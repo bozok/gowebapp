@@ -17,12 +17,12 @@ func main() {
 	dayMonths["Nov"] = 30
 	dayMonths["Dec"] = 31
 
-	// days, ok := dayMonths["Jun"]
-	// if !ok {
-	// 	fmt.Printf("Can't get days for Jun")
-	// } else {
-	// 	fmt.Printf("Days in June %d\n", days)
-	// }
+	days, ok := dayMonths["Jun"]
+	if !ok {
+		fmt.Printf("Can't get days for Jun")
+	} else {
+		fmt.Printf("Days in June %d\n", days)
+	}
 
 	has28 := 1
 
