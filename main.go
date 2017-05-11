@@ -20,7 +20,11 @@ func printer(msg string) error {
 
 func main() {
 	if err := printer(""); err != nil {
-		fmt.Printf("printer failed: %s\n", err)
+		if err == errorEmptyString {
+			fmt.Printf("You tried to print an empty string!\n")
+		} else {
+			fmt.Printf("printer failed: %s\n", err)
+		}
 		os.Exit(1)
 	}
 }
