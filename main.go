@@ -3,21 +3,99 @@ package main
 import (
 	"errors"
 	"fmt"
+	"math/rand"
+	"time"
 )
 
 var (
 	errorEmptyString = errors.New("Unwilling to print an emty string")
 )
 
-func printer(msg string) error {
-	if msg == "" {
-		return errorEmptyString
+type Geometry interface {
+	Area() int
+}
+
+type Triangle struct {
+	Base   int
+	Height int
+}
+
+func (t Triangle) Area() int {
+	return (t.Base * t.Height) / 2
+}
+
+func PrintArea(g Geometry) {
+	area := g.Area()
+	fmt.Println(area)
+}
+
+func makeRandoms(c chan int) {
+	for {
+		c <- rand.Intn(1000)
 	}
-	_, err := fmt.Printf("%s\n", msg)
-	return err
+}
+
+func makeID(c chan int) {
+	var id int
+	id = 0
+	for {
+		c <- id
+		id++
+	}
+}
+
+func emit(wordChannel chan string, done chan bool) {
+	defer close(wordChannel)
+	words := []string{"The", "quick", "brown", "fox"}
+	i := 0
+	t := time.NewTimer(3 * time.Second)
+	for {
+		select {
+		case wordChannel <- words[i]:
+			i++
+			if i == len(words) {
+				i = 0
+			}
+
+		case <-done:
+			fmt.Printf("GOT DONE\n")
+			close(done)
+			return
+
+		case <-t.C:
+			return
+		}
+	}
 }
 
 func main() {
+	/* CHANNEL USAGE-2 */
+	wordCh := make(chan string)
+	doneCh := make(chan bool)
+
+	go emit(wordCh, doneCh)
+
+	for word := range wordCh {
+		fmt.Printf("%s ", word)
+	}
+
+	/* CHANNEL USAGE-1 */
+	//idChan := make(chan int)
+	//go makeID(idChan)
+	//fmt.Printf("%d\n", <-idChan)
+	//fmt.Printf("%d\n", <-idChan)
+
+	/* RANDOM NUMBER GENERATOR */
+	//randoms := make(chan int)
+	//go makeRandoms(randoms)
+	//for n := range randoms {
+	//	fmt.Printf("%d ", n)
+	//}
+
+	// STRUCT GEOMETRIC CALCULATION
+	//t := Triangle{0, 5}
+	//PrintArea(t)
+
 	/* SLICE USAGE */
 	// newSlice := make([]float32, 5, 10) // 5 elemanli ve max 10 kapasiteli slice tanimi
 	// newSlice[0] = 1.32
