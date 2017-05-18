@@ -3,7 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"net/http"
+	"sync/atomic"
 	"time"
 )
 
@@ -68,16 +71,130 @@ func emit(wordChannel chan string, done chan bool) {
 	}
 }
 
-func main() {
-	/* CHANNEL USAGE-2 */
-	wordCh := make(chan string)
-	doneCh := make(chan bool)
-
-	go emit(wordCh, doneCh)
-
-	for word := range wordCh {
-		fmt.Printf("%s ", word)
+func getPage(url string) (int, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return 0, err
 	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+	return len(body), nil
+}
+
+func getter(url string, size chan string) {
+	length, err := getPage(url)
+	if err == nil {
+		size <- fmt.Sprintf("%s has legnt %d\n", url, length)
+	}
+}
+
+var (
+	running int64 = 0
+)
+
+func work() {
+	atomic.AddInt64(&running, 1)
+	fmt.Printf("[%d ", running)
+	time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
+	atomic.AddInt64(&running, -1)
+	fmt.Printf("]")
+}
+
+func worker(ch chan bool) {
+	<-ch
+	work()
+	ch <- true
+}
+
+type webPage struct {
+	url  string
+	body []byte
+	err  error
+}
+
+func (w *webPage) get() {
+	resp, err := http.Get(w.url)
+	if err != nil {
+		w.err = err
+		return
+	}
+	defer resp.Body.Close()
+	w.body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		w.err = err
+	}
+}
+
+func (w *webPage) isOK() bool {
+	return w.err == nil
+}
+
+type shuffler interface {
+	Len() int
+	Swap(i, j int)
+}
+
+func shuffle(s shuffler) {
+	for i := 0; i < s.Len(); i++ {
+		j := rand.Intn(s.Len() - i)
+		s.Swap(i, j)
+	}
+}
+
+type intSlice []int
+
+func (is intSlice) Len() int {
+	return len(is)
+}
+
+func (is intSlice) Swap(i, j int) {
+	is[i], is[j] = is[j], is[i]
+}
+
+func main() {
+	/* INTERFACES */
+	is := intSlice{1, 2, 3, 4, 5, 6}
+	shuffle(is)
+	fmt.Printf("%q\n", is)
+	/* TYPES */
+	// w := &webPage{url: "http://www.google.com/"}
+	// w.get()
+	// if w.isOK() {
+	// 	fmt.Printf("URL: %s Error: %s Legth: %d\n", w.url, w.err, len(w.body))
+	// } else {
+	// 	fmt.Printf("Something went wrong")
+	// }
+
+	/* BUFFERED CHANNLES */
+	//ch := make(chan bool, 20)
+	//for i := 0; i < 1000; i++ {
+	//	go worker(ch)
+	//}
+	//for i := 0; i < cap(ch); i++ {
+	//	ch <- true
+	//}
+	//time.Sleep(30 * time.Second)
+
+	/* READER & WRITERS */
+	//urls := []string{"http://www.google.com/", "http://www.yahoo.com", "https://portal.selcukluholding.com.tr", "http://siparis.ilko.com.tr"}
+	//size := make(chan string)
+	//for _, url := range urls {
+	//	go getter(url, size)
+	//}
+	//for i := 0; i < len(urls); i++ {
+	//	fmt.Printf(<-size)
+	//}
+
+	/* CHANNEL USAGE-2 */
+	//wordCh := make(chan string)
+	//doneCh := make(chan bool)
+	//go emit(wordCh, doneCh)
+	//for word := range wordCh {
+	//	fmt.Printf("%s ", word)
+	//}
 
 	/* CHANNEL USAGE-1 */
 	//idChan := make(chan int)
