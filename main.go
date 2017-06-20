@@ -11,12 +11,19 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var themeName = getThemeName()
-var staticPages = populateStaticPages()
-
 func main() {
 	serveWeb()
 }
+
+// Struct to pass into the template
+type defaultContext struct {
+	Title      string
+	ErrorMsg   string
+	SuccessMsg string
+}
+
+var themeName = getThemeName()
+var staticPages = populateStaticPages()
 
 func serveWeb() {
 	gorillaRoute := mux.NewRouter()
@@ -29,6 +36,7 @@ func serveWeb() {
 	http.HandleFunc("/js/", serveResources)
 
 	http.Handle("/", gorillaRoute)
+	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.ListenAndServe(":8080", nil)
 
 }
@@ -45,8 +53,15 @@ func serveContent(w http.ResponseWriter, r *http.Request) {
 		staticPage = staticPages.Lookup("404.html")
 		w.WriteHeader(404)
 	}
-	//w.Write([]byte("Hello Universe! " + page_alias))
-	staticPage.Execute(w, nil)
+
+	// Values to pass into the template
+	context := defaultContext{}
+	context.Title = page_alias
+	context.ErrorMsg = ""
+	context.SuccessMsg = ""
+
+	//staticPage.Execute(w, nil)
+	staticPage.Execute(w, context)
 }
 
 func getThemeName() string {
@@ -56,11 +71,11 @@ func getThemeName() string {
 // Retrieve all files under given folder and its subsequent folders
 func populateStaticPages() *template.Template {
 	result := template.New("pages")
+	templatePaths := new([]string)
+
 	basePath := "pages"
 	templateFolder, _ := os.Open(basePath)
 	defer templateFolder.Close()
-
-	templatePaths := new([]string)
 	templatePathsRaw, _ := templateFolder.Readdir(-1)
 
 	for _, pathInfo := range templatePathsRaw {
@@ -69,6 +84,16 @@ func populateStaticPages() *template.Template {
 		// if !pathInfo.IsDir() {
 		// 	*templatePaths = append(*templatePaths, basePath+"/"+pathInfo.Name())
 		// }
+	}
+
+	basePath = "themes"
+	templateFolder, _ = os.Open(basePath)
+	defer templateFolder.Close()
+	templatePathsRaw, _ = templateFolder.Readdir(-1)
+
+	for _, pathInfo := range templatePathsRaw {
+		log.Println(pathInfo.Name())
+		*templatePaths = append(*templatePaths, basePath+"/"+pathInfo.Name())
 	}
 	result.ParseFiles(*templatePaths...)
 	return result
